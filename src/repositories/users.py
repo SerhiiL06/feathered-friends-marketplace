@@ -1,0 +1,19 @@
+from core.config import users
+from pymongo.errors import DuplicateKeyError
+from fastapi import HTTPException
+
+
+class UserRepository:
+    async def create_user(self, data: dict) -> int:
+        try:
+            res = await users.insert_one(data)
+            return res.inserted_id
+        except DuplicateKeyError:
+            raise HTTPException(400, {"error": "user with this email is exists"})
+
+    async def get_user_by_email(self, email) -> dict:
+        user = await users.find_one(
+            {"email": email}, {"_id": 0, "email": 1, "password": 1}
+        )
+
+        return user
