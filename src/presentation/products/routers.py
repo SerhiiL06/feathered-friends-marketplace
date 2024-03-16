@@ -1,8 +1,11 @@
 from typing import Annotated, Literal
-from fastapi import APIRouter, Depends, Body, Request
-from src.domain.products.services import ProductDomain
+
+from fastapi import APIRouter, Body, Depends, Request
+
 from src.domain.products.bookmarks import BookmarkDomain
-from .dto import ProductDTO, CommentDTO
+from src.domain.products.services import CartDomain, ProductDomain
+
+from .dto import CommentDTO, ProductDTO
 
 product_router = APIRouter()
 
@@ -65,3 +68,18 @@ async def bookmark_list(
     service: Annotated[BookmarkDomain, Depends()], request: Request
 ):
     return await service.bookmarks_list(request.cookies.get("session_key"))
+
+
+@product_router.post("/products/{slug}/add-to-cart")
+async def add_product_to_cart(
+    service: Annotated[CartDomain, Depends()],
+    request: Request,
+    slug: str,
+    qty: int = Body(),
+):
+    return await service.add_to_cart(request.cookies.get("session_key"), slug, qty)
+
+
+@product_router.get("/cart")
+async def cart_view(request: Request, service: Annotated[CartDomain, Depends()]):
+    return await service.get_cart(request.cookies.get("session_key"))

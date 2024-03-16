@@ -1,8 +1,10 @@
-from fastapi import FastAPI, Request
-from src.presentation.users.routers import users_router
-from src.presentation.products.routers import product_router
 import uuid
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
+
+from fastapi import FastAPI, Request
+
+from src.presentation.products.routers import product_router
+from src.presentation.users.routers import users_router
 
 app = FastAPI()
 

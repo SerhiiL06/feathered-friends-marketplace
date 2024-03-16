@@ -1,8 +1,12 @@
-from src.presentation.products.dto import ProductDTO, DetailProductDTO, CommentDTO
-from src.repositories.products.products import ProductRepository
 from dataclasses import asdict
-from slugify import slugify
 from datetime import datetime
+
+from slugify import slugify
+
+from src.presentation.products.dto import (CommentDTO, DetailProductDTO,
+                                           ProductDTO)
+from src.repositories.cart.repository import CartRepository
+from src.repositories.products.products import ProductRepository
 
 
 class ProductDomain:
@@ -65,3 +69,18 @@ class ProductDomain:
             f.update({"price.retail": {"$gt": filtering_data.get("price_gt")}})
 
         return await self.repo.product_list(f)
+
+
+class CartDomain:
+    def __init__(self) -> None:
+        self.repo = CartRepository()
+
+    async def add_to_cart(self, session_key: str, slug: str, qty: int):
+        try:
+            await self.repo.add_to_cart(session_key, slug, qty)
+            return {"ok": "add success"}
+        except:
+            return {"error": "something went wrong"}
+
+    async def get_cart(self, session_key: str):
+        return await self.repo.user_cart(session_key)

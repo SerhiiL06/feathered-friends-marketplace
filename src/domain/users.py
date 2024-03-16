@@ -1,8 +1,8 @@
-from src.repositories.users import UserRepository
-from src.presentation.users.mapping import RegisterDTO, LoginDTO
 from fastapi import HTTPException, status
 from passlib.context import CryptContext
 
+from src.presentation.users.mapping import LoginDTO, RegisterDTO
+from src.repositories.users import UserRepository
 
 bcrypt = CryptContext(schemes=["bcrypt"])
 

@@ -1,7 +1,10 @@
-from fastapi import APIRouter, Depends
 from typing import Annotated
+
+from fastapi import APIRouter, Depends
+
 from src.domain.users import UserDomain
-from .mapping import RegisterDTO, LoginDTO
+
+from .mapping import LoginDTO, RegisterDTO
 
 users_router = APIRouter(prefix="/users")
 

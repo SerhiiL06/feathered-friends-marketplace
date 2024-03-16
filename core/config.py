@@ -10,3 +10,10 @@ db = client["marketplace"]
 products = db["products"]
 categories = db["categories"]
 users = db["users"]
+
+
+class RedisTools:
+
+    @property
+    def connect_redis(self):
+        return Redis()

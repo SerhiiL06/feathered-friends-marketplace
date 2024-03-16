@@ -1,5 +1,6 @@
-from core.config import products, categories
 from bson import ObjectId
+
+from core.config import categories, products
 
 
 class ProductRepository:
@@ -20,6 +21,17 @@ class ProductRepository:
         return await products.find(filtering_data, {"_id": 0, "comments": 0}).to_list(
             None
         )
+
+    async def product_by_ids(self, ids: int | list):
+        if isinstance(ids, list):
+            ids = list(map(lambda x: ObjectId(x.decode("utf-8")), ids))
+            print("ids", ids)
+            product_list = await products.find(
+                {"_id": {"$in": ids}}, {"comments": 0}
+            ).to_list(None)
+            print("here")
+            return product_list
+        return await products.find_one({"_id": ids})
 
     async def product_by_slug(self, slug: str | set) -> list | dict:
 

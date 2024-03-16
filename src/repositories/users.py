@@ -1,6 +1,7 @@
-from core.config import users
-from pymongo.errors import DuplicateKeyError
 from fastapi import HTTPException
+from pymongo.errors import DuplicateKeyError
+
+from core.config import users
 
 
 class UserRepository:
