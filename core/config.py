@@ -1,7 +1,8 @@
 from motor.motor_asyncio import AsyncIOMotorClient
+from redis import Redis
 
 client = AsyncIOMotorClient()
-
+redis_client = Redis()
 
 db = client["marketplace"]
 

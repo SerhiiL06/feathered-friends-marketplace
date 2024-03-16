@@ -21,7 +21,15 @@ class ProductRepository:
             None
         )
 
-    async def product_by_slug(self, slug: str):
+    async def product_by_slug(self, slug: str | set) -> list | dict:
+
+        if isinstance(slug, set):
+            list_of_slugs = list(map(lambda x: x.decode("utf-8"), slug))
+            filter_data = {"slug": {"$in": list_of_slugs}}
+
+            return await products.find(filter_data, {"_id": 0, "comments": 0}).to_list(
+                None
+            )
         return await products.find_one({"slug": slug})
 
     async def add_comment(self, slug, comment):

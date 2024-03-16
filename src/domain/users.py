@@ -1,5 +1,5 @@
 from src.repositories.users import UserRepository
-from src.presentation.mapping import RegisterDTO, LoginDTO
+from src.presentation.users.mapping import RegisterDTO, LoginDTO
 from fastapi import HTTPException, status
 from passlib.context import CryptContext
 
