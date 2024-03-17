@@ -24,12 +24,10 @@ class ProductRepository:
 
     async def product_by_ids(self, ids: int | list):
         if isinstance(ids, list):
-            ids = list(map(lambda x: ObjectId(x.decode("utf-8")), ids))
-            print("ids", ids)
+            ids = list(map(lambda x: ObjectId(x), ids))
             product_list = await products.find(
                 {"_id": {"$in": ids}}, {"comments": 0}
             ).to_list(None)
-            print("here")
             return product_list
         return await products.find_one({"_id": ids})
 

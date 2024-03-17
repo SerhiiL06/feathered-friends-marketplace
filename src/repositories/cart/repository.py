@@ -14,40 +14,31 @@ class CartRepository:
         key = f"cart:{session_key}"
         self.__redis.zadd(key, mapping={str(product["_id"]): qty}, incr=True)
 
+    async def clear_cart(self, session_key: str, specific: str = None):
+        key_to_delete = f"cart:{session_key}"
+
+        if specific:
+            product_document = await self.repo.product_by_slug(specific)
+            self.__redis.zrem(key_to_delete, str(product_document["_id"]))
+            return {"message": "product was delete"}
+
+        self.__redis.delete(key_to_delete)
+        return {"message": "cart was clear"}
+
     async def user_cart(self, session_key: str):
         key = f"cart:{session_key}"
         cart_items = self.__redis.zrange(key, 0, -1, withscores=True)
 
-        ids = []
         product_dict = {}
 
-        for el in cart_items:
-            ids.append(el[0])
-            product_dict.update({el[0].decode("utf-8"): {"qty": el[1]}})
+        for item in cart_items:
+            product_dict.update({item[0].decode("utf-8"): {"qty": item[1]}})
 
-        products = await self.repo.product_by_ids(ids)
+        products = await self.repo.product_by_ids(list(product_dict.keys()))
 
-        cart_data = []
-        summary_price = 0
+        result = {"products": products, "product_dict": product_dict}
 
-        for product in products:
-            qty = product_dict.get(str(product["_id"]))["qty"]
-            current_price = (
-                product["price"]["retail"]
-                if qty < 10
-                else product["price"]["wholesale"]
-            )
-            total_price = qty * current_price
-            dict_data = {
-                "title": product["title"],
-                "slug": product["slug"],
-                "price": current_price,
-                "qty": qty,
-                "total": total_price,
-            }
-            cart_data.append(dict_data)
-            summary_price += total_price
+        if not products:
+            result.update({"empty": "cart is empty"})
 
-        cart_data.append({"summary": summary_price})
-
-        return cart_data
+        return result

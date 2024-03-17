@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends
 
 from src.domain.users import UserDomain
 
-from .mapping import LoginDTO, RegisterDTO
+from .dto import LoginDTO, RegisterDTO
 
-users_router = APIRouter(prefix="/users")
+users_router = APIRouter(prefix="/users", tags=["auth"])
 
 
 @users_router.post("/register")

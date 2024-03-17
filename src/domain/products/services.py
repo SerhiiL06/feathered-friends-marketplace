@@ -82,5 +82,41 @@ class CartDomain:
         except:
             return {"error": "something went wrong"}
 
+    async def delete_cart(self, session_key: str, specific: str = None):
+        result = await self.repo.clear_cart(session_key, specific)
+        return result
+
     async def get_cart(self, session_key: str):
-        return await self.repo.user_cart(session_key)
+        format_data = await self.repo.user_cart(session_key)
+
+        if format_data.get("empty"):
+            return {"message": format_data.get("empty")}
+
+        products, product_dict = format_data.get("products"), format_data.get(
+            "product_dict"
+        )
+
+        cart_data = []
+        summary_price = 0
+
+        for product in products:
+            qty = product_dict.get(str(product["_id"]))["qty"]
+            current_price = (
+                product["price"]["retail"]
+                if qty < 10
+                else product["price"]["wholesale"]
+            )
+            total_price = qty * current_price
+            dict_data = {
+                "title": product["title"],
+                "slug": product["slug"],
+                "price": current_price,
+                "qty": qty,
+                "total": total_price,
+            }
+            cart_data.append(dict_data)
+            summary_price += total_price
+
+        cart_data.append({"summary": summary_price})
+
+        return cart_data

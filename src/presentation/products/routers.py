@@ -5,12 +5,12 @@ from fastapi import APIRouter, Body, Depends, Request
 from src.domain.products.bookmarks import BookmarkDomain
 from src.domain.products.services import CartDomain, ProductDomain
 
-from .dto import CommentDTO, ProductDTO
+from .dto import ProductDTO
 
 product_router = APIRouter()
 
 
-@product_router.get("/products")
+@product_router.get("/products", tags=["products"])
 async def product_list(
     service: Annotated[ProductDomain, Depends()],
     tag: str = None,
@@ -27,50 +27,50 @@ async def product_list(
     return await service.all_products(filtering_data)
 
 
-@product_router.post("/products")
+@product_router.post("/products", tags=["products"])
 async def create_product(
     service: Annotated[ProductDomain, Depends()], data: ProductDTO
 ):
     return await service.add_product(data)
 
 
-@product_router.get("/products/{slug}")
+@product_router.get("/products/{slug}", tags=["products"])
 async def product_detail(service: Annotated[ProductDomain, Depends()], slug: str):
     return await service.retrieve_product(slug)
 
 
-@product_router.patch("/products/{slug}")
+@product_router.patch("/products/{slug}", tags=["products"])
 async def product_detail(slug: str):
     pass
 
 
-@product_router.delete("/products/{slug}")
+@product_router.delete("/products/{slug}", tags=["products"])
 async def delete_product(service: Annotated[ProductDomain, Depends()], slug: str):
     return await service.delete_product(slug)
 
 
-@product_router.post("/products/{slug}/comment")
+@product_router.post("/products/{slug}/comment", tags=["comments"])
 async def comment_product(
     service: Annotated[ProductDomain, Depends()], slug: str, data: str = Body()
 ):
     return await service.comment(slug, data)
 
 
-@product_router.post("/products/{slug}/add-to-bookmark")
+@product_router.post("/products/{slug}/add-to-bookmark", tags=["bookmarks"])
 async def bookmark_action(
     service: Annotated[BookmarkDomain, Depends()], request: Request, slug: str
 ):
     return await service.update_bookmark(request.cookies.get("session_key"), slug)
 
 
-@product_router.get("/bookmarks")
+@product_router.get("/bookmarks", tags=["bookmarks"])
 async def bookmark_list(
     service: Annotated[BookmarkDomain, Depends()], request: Request
 ):
     return await service.bookmarks_list(request.cookies.get("session_key"))
 
 
-@product_router.post("/products/{slug}/add-to-cart")
+@product_router.post("/products/{slug}/add-to-cart", tags=["cart"])
 async def add_product_to_cart(
     service: Annotated[CartDomain, Depends()],
     request: Request,
@@ -80,6 +80,18 @@ async def add_product_to_cart(
     return await service.add_to_cart(request.cookies.get("session_key"), slug, qty)
 
 
-@product_router.get("/cart")
+@product_router.get("/cart", tags=["cart"])
 async def cart_view(request: Request, service: Annotated[CartDomain, Depends()]):
     return await service.get_cart(request.cookies.get("session_key"))
+
+
+@product_router.post("/cart", tags=["cart"])
+async def clear_cart(request: Request, service: Annotated[CartDomain, Depends()]):
+    return service.delete_cart(request.cookies.get("session_key"))
+
+
+@product_router.post("/cart/{product_slug}", tags=["cart"])
+async def clear_specific(
+    request: Request, product_slug: str, service: Annotated[CartDomain, Depends()]
+):
+    return await service.delete_cart(request.cookies.get("session_key"), product_slug)
