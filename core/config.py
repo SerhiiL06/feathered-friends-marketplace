@@ -8,6 +8,7 @@ db = client["marketplace"]
 
 
 products = db["products"]
+orderds = db["orders"]
 categories = db["categories"]
 users = db["users"]
 

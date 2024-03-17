@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from src.domain.users import UserDomain
+from src.domain.users.services import UserDomain
 
 from .dto import LoginDTO, RegisterDTO
 

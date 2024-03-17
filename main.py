@@ -1,8 +1,8 @@
 import uuid
-from datetime import UTC, datetime, timedelta
 
 from fastapi import FastAPI, Request
 
+from src.presentation.orders.routers import order_router
 from src.presentation.products.routers import product_router
 from src.presentation.users.routers import users_router
 
@@ -19,3 +19,4 @@ async def check_session(request: Request, next_call):
 
 app.include_router(users_router)
 app.include_router(product_router)
+app.include_router(order_router)

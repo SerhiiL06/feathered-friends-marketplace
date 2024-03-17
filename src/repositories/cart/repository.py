@@ -1,4 +1,6 @@
-from core.config import RedisTools
+from bson import ObjectId
+
+from core.config import RedisTools, orderds
 from src.repositories.products.products import ProductRepository
 
 
@@ -42,3 +44,16 @@ class CartRepository:
             result.update({"empty": "cart is empty"})
 
         return result
+
+
+class OrderRepository:
+
+    async def create_order(self, data: dict) -> str:
+        result = await orderds.insert_one(data)
+        return str(result.inserted_id)
+
+    async def retrieve_all_orders(self):
+        return await orderds.find({}).sort({"created_date": -1}).to_list(None)
+
+    async def retrieve_order(self, order_id):
+        return await orderds.find_one({"_id": ObjectId(order_id)}, {"_id": 0})

@@ -43,3 +43,8 @@ class DetailProductDTO:
 class FullProductDTO(PriceDTO):
     comments: list[ReadCommentDTO]
     votes: int
+
+
+# @dataclass
+# class CreateOrderDTO:
+#     item_list

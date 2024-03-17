@@ -5,7 +5,7 @@ from slugify import slugify
 
 from src.presentation.products.dto import (CommentDTO, DetailProductDTO,
                                            ProductDTO)
-from src.repositories.cart.repository import CartRepository
+from src.repositories.cart.repository import CartRepository, OrderRepository
 from src.repositories.products.products import ProductRepository
 
 
@@ -86,7 +86,7 @@ class CartDomain:
         result = await self.repo.clear_cart(session_key, specific)
         return result
 
-    async def get_cart(self, session_key: str):
+    async def get_cart(self, session_key: str) -> list:
         format_data = await self.repo.user_cart(session_key)
 
         if format_data.get("empty"):
@@ -96,10 +96,16 @@ class CartDomain:
             "product_dict"
         )
 
+        cart_data = self.generate_cart_data(products, product_dict)
+
+        return cart_data
+
+    @staticmethod
+    def generate_cart_data(product_list: list, product_dict: dict) -> list:
         cart_data = []
         summary_price = 0
 
-        for product in products:
+        for product in product_list:
             qty = product_dict.get(str(product["_id"]))["qty"]
             current_price = (
                 product["price"]["retail"]
@@ -120,3 +126,54 @@ class CartDomain:
         cart_data.append({"summary": summary_price})
 
         return cart_data
+
+
+class OrderDomain:
+    def __init__(self) -> None:
+        self.cart = CartDomain()
+        self.products = ProductDomain()
+        self.repo = OrderRepository()
+
+    async def complete_order(self, session_key, order_data: dict):
+        cart_data = await self.cart.get_cart(session_key)
+
+        order = {}
+        order["items_line"] = cart_data[:-1]
+        order["created_date"] = datetime.now()
+
+        order.update(
+            {
+                "recipient_data": [
+                    {
+                        "user": {
+                            "first_name": order_data.get("first_name"),
+                            "last_name": order_data.get("last_name"),
+                        }
+                    },
+                    {
+                        "address": {
+                            "city": order_data.get("city"),
+                            "zip_code": order_data.get("zip_code"),
+                        }
+                    },
+                ]
+            }
+        )
+
+        order["total_price"] = cart_data[-1].get("summary")
+
+        await self.cart.delete_cart(session_key)
+        return await self.repo.create_order(order)
+
+    async def fetch_orders(self):
+        list_of_orders = await self.repo.retrieve_all_orders()
+
+        # Отримати рядкове представлення ObjectId для кожного документа
+        list_of_orders_with_string_ids = [
+            {**order, "_id": str(order["_id"])} for order in list_of_orders
+        ]
+
+        return list_of_orders_with_string_ids
+
+    async def fetch_one_order(self, order_id):
+        return await self.repo.retrieve_order(order_id)
