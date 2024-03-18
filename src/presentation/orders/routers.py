@@ -14,12 +14,17 @@ order_router = APIRouter(tags=["orders"])
 async def create_order(
     request: Request, data: CreateOrderDto, service: Annotated[OrderDomain, Depends()]
 ):
-    return await service.complete_order(
+    order_data = await service.complete_order(
         request.cookies.get("session_key"), asdict(data)
     )
 
+    if order_data is None:
+        return {"error": "cart is empty"}
 
-@order_router.get("/orders")
+    return {"link": order_data}
+
+
+@order_router.get("/orders-history")
 async def get_order_list(service: Annotated[OrderDomain, Depends()]):
     return await service.fetch_orders()
 

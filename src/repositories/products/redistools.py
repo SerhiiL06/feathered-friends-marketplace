@@ -7,6 +7,7 @@ from src.repositories.products.products import ProductRepository
 class RedisRepository(RedisTools):
     def __init__(self) -> None:
         self.__redis = RedisTools().connect_redis
+        self.repo = ProductRepository()
 
     async def update_bookmark(self, session_key: str, product_slug):
         set_key = f"bookmark:{session_key}"

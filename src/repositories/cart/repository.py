@@ -38,22 +38,28 @@ class CartRepository:
 
         products = await self.repo.product_by_ids(list(product_dict.keys()))
 
-        result = {"products": products, "product_dict": product_dict}
-
         if not products:
-            result.update({"empty": "cart is empty"})
+            return None
+
+        result = {"products": products, "product_dict": product_dict}
 
         return result
 
 
 class OrderRepository:
+    def __init__(self) -> None:
+        client = RedisTools()
+
+        self.__redis = client.connect_redis
 
     async def create_order(self, data: dict) -> str:
+
         result = await orderds.insert_one(data)
-        return str(result.inserted_id)
+
+        return result
 
     async def retrieve_all_orders(self):
         return await orderds.find({}).sort({"created_date": -1}).to_list(None)
 
-    async def retrieve_order(self, order_id):
-        return await orderds.find_one({"_id": ObjectId(order_id)}, {"_id": 0})
+    async def retrieve_order(self, order_id) -> dict:
+        return await orderds.find_one({"_id": ObjectId(order_id)})
