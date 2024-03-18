@@ -1,9 +1,13 @@
 from bson import ObjectId
 
-from core.config import categories, products
+from core.config import RedisTools, categories, products
 
 
 class ProductRepository:
+    def __init__(self) -> None:
+        client = RedisTools()
+        self.redis = client.connect_redis
+
     async def create_product(self, data: dict) -> dict:
         category_ids = await self.category_by_title(data.pop("category_titles"))
 

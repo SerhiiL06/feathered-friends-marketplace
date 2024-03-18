@@ -1,18 +1,15 @@
-import os
+import logging
 from dataclasses import asdict
 from datetime import datetime
 
-import requests
 from dotenv import load_dotenv
 from slugify import slugify
 
-from core.liqpay import LiqPay
+from core.liqpay import LiqPayTools
 from src.presentation.products.dto import (CommentDTO, DetailProductDTO,
                                            ProductDTO)
 from src.repositories.cart.repository import CartRepository, OrderRepository
 from src.repositories.products.products import ProductRepository
-
-load_dotenv()
 
 
 class ProductDomain:
@@ -86,6 +83,7 @@ class CartDomain:
             await self.repo.add_to_cart(session_key, slug, qty)
             return {"ok": "add success"}
         except:
+
             return {"error": "something went wrong"}
 
     async def delete_cart(self, session_key: str, specific: str = None):
@@ -113,12 +111,18 @@ class CartDomain:
 
         for product in product_list:
             qty = product_dict.get(str(product["_id"]))["qty"]
+
+            # ціна за одиницю будується в залежності від кількості замовлений одиниць
             current_price = (
                 product["price"]["retail"]
                 if qty < 10
                 else product["price"]["wholesale"]
             )
+
+            # вирахування ціни за певний товар
             total_price = qty * current_price
+
+            # додавання інформації з приводу доданого продукту до корзини
             dict_data = {
                 "title": product["title"],
                 "slug": product["slug"],
@@ -127,69 +131,29 @@ class CartDomain:
                 "total": total_price,
             }
             cart_data.append(dict_data)
+
             summary_price += total_price
 
+        # додавання до результуючого списку корзини ціни за всі товари
         cart_data.append({"summary": summary_price})
 
         return cart_data
 
 
-class LiqPayTools:
-    PUBLIC_KEY = os.getenv("PUBLIC_KEY")
-    PRIVATE_KEY = os.getenv("PRIVATE_KEY")
-
-    def __init__(self):
-        self.liqpay = LiqPay(self.PUBLIC_KEY, self.PRIVATE_KEY)
-
-    def generate_pay_link(self, order_data):
-
-        description = f"Order by {order_data['recipient_data']['user']['first_name']} {order_data['recipient_data']['user']['first_name']}"
-        # Дані для відправки на LiqPay
-        data = {
-            "version": "3",
-            "public_key": self.PUBLIC_KEY,
-            "private_key": self.PRIVATE_KEY,
-            "action": "pay",
-            "amount": order_data["total_price"],
-            "currency": "UAH",
-            "result_url": f"http://127.0.0.1:8000/success-pay",
-            "server_url": f"http://127.0.0.1:8000/verify-order/",
-            "description": description,
-            "order_id": "1",
-        }
-
-        data_to_sign = self.liqpay.data_to_sign(data)
-
-        params = {"data": data_to_sign, "signature": self.liqpay.cnb_signature(data)}
-        try:
-            response = requests.post(
-                url="https://www.liqpay.ua/api/3/checkout/", data=params
-            )
-
-            if response.status_code == 200:
-                return response.url
-
-            return response.status_code
-        except:
-            return 400
-
-
-class OrderDomain:
-    PUBLIC_KEY = os.getenv("PUBLIC_KEY")
-    PRIVATE_KEY = os.getenv("PRIVATE_KEY")
+class OrderDomain(LiqPayTools):
 
     def __init__(self) -> None:
         self.cart = CartDomain()
         self.products = ProductDomain()
         self.repo = OrderRepository()
-        self.lq = LiqPayTools()
+        super().__init__()
 
     async def complete_order(self, session_key, order_data: dict):
         cart_data = await self.cart.get_cart(session_key)
 
         # перевіряємо чи в корзині є товари
         if cart_data is None:
-            return None
+            return cart_data
 
         # створюємо екземпляр замовлення
         order = {}
@@ -218,9 +182,14 @@ class OrderDomain:
         await self.cart.delete_cart(session_key)
 
         # зберігаємо замовлення
-        new_order = await self.repo.create_order(order)
-        link_to_pay = self.lq.generate_pay_link(order)
+        await self.repo.create_order(order)
+        link_to_pay = self.generate_pay_link(order)
         return link_to_pay
+
+    def verify_payment(self, order_id):
+        r = self.check_pay_status(order_id)
+
+        return r
 
     async def fetch_orders(self):
         list_of_orders = await self.repo.retrieve_all_orders()

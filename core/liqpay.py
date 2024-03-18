@@ -16,6 +16,8 @@ from urllib.parse import urljoin
 
 import requests
 
+from . import config
+
 
 class ParamValidationError(Exception):
     pass
@@ -173,3 +175,55 @@ class LiqPay(object):
                 raise ParamValidationError("Invalid signature")
 
         return json.loads(base64.b64decode(data).decode("utf-8"))
+
+
+class LiqPayTools:
+    __PUBLIC_KEY = config.PUBLIC_KEY
+    __PRIVATE_KEY = config.PRIVATE_KEY
+
+    def __init__(self):
+        self.liqpay = LiqPay(self.__PUBLIC_KEY, self.__PRIVATE_KEY)
+
+    def generate_pay_link(self, order_data):
+
+        description = f"Order by {order_data['recipient_data']['user']['first_name']} {order_data['recipient_data']['user']['first_name']}"
+        # Дані для відправки на LiqPay
+        data = {
+            "version": "3",
+            "public_key": self.__PUBLIC_KEY,
+            "private_key": self.__PRIVATE_KEY,
+            "action": "pay",
+            "amount": order_data["total_price"],
+            "currency": "UAH",
+            "result_url": f"http://127.0.0.1:8000/success-pay",
+            "server_url": f"http://127.0.0.1:8000/verify-order",
+            "description": description,
+            "order_id": str(order_data["_id"]),
+        }
+
+        data_to_sign = self.liqpay.data_to_sign(data)
+
+        params = {"data": data_to_sign, "signature": self.liqpay.cnb_signature(data)}
+        try:
+            response = requests.post(
+                url="https://www.liqpay.ua/api/3/checkout/", data=params
+            )
+            if response.status_code == 200:
+                return response.url
+
+            return response.status_code
+        except:
+            return 400
+
+    def check_pay_status(self, order_id):
+
+        data = {
+            "version": "3",
+            "public_key": config.PUBLIC_KEY,
+        }
+
+        data["action"] = "status"
+        data["order_id"] = order_id
+        response = self.liqpay.api("request", data)
+
+        return response

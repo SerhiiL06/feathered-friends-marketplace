@@ -14,14 +14,24 @@ order_router = APIRouter(tags=["orders"])
 async def create_order(
     request: Request, data: CreateOrderDto, service: Annotated[OrderDomain, Depends()]
 ):
-    order_data = await service.complete_order(
+    link = await service.complete_order(
         request.cookies.get("session_key"), asdict(data)
     )
 
-    if order_data is None:
-        return {"error": "cart is empty"}
+    if link is None:
+        return {"message": "cart is empty"}
 
-    return {"link": order_data}
+    return {"link": link}
+
+
+@order_router.get("/success-pay")
+async def request_order_for_user():
+    return {"ok": "thank u"}
+
+
+@order_router.post("/verify-order")
+async def get_payment_data(request: Request):
+    print(request.body)
 
 
 @order_router.get("/orders-history")
