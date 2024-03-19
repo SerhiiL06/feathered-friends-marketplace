@@ -26,3 +26,4 @@ class RedisTools:
 
 PUBLIC_KEY = os.getenv("PUBLIC_KEY")
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
+SECRET_KEY = os.getenv("SECRET_KEY")

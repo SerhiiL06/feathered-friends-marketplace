@@ -10,11 +10,10 @@ class UserRepository:
             res = await users.insert_one(data)
             return res.inserted_id
         except DuplicateKeyError:
-            raise HTTPException(400, {"error": "user with this email is exists"})
+            raise HTTPException(
+                400, {"error": "user with this email already is exists"}
+            )
 
     async def get_user_by_email(self, email) -> dict:
-        user = await users.find_one(
-            {"email": email}, {"_id": 0, "email": 1, "password": 1}
-        )
-
+        user = await users.find_one({"email": email})
         return user
