@@ -1,11 +1,11 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 
 from src.domain.users.services import AuthService, UserDomain, current_user
 
-from .dto import LoginDTO, RegisterDTO
+from .dto import RegisterDTO
 
 users_router = APIRouter(prefix="/users", tags=["auth"])
 
@@ -23,6 +23,13 @@ async def login(
     return await service.get_token(data)
 
 
-@users_router.get("/test")
-async def login(user: current_user):
-    return {"user": user}
+@users_router.get("/profile")
+async def get_profile(user: current_user, service: Annotated[UserDomain, Depends()]):
+    return await service.fetch_profile(user.get("user_id"))
+
+
+@users_router.get("/admin/user-list")
+async def get_users(user: current_user, service: Annotated[UserDomain, Depends()]):
+    if user.get("role") != "admin":
+        raise HTTPException(403, "you dont have permission")
+    return await service.user_list()

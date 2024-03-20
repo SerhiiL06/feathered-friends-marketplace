@@ -8,7 +8,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 
 from core import config
-from src.presentation.users.dto import LoginDTO, RegisterDTO
+from src.presentation.users.dto import RegisterDTO, RoleEnum
 from src.repositories.users.repository import UserRepository
 
 bcrypt = CryptContext(schemes=["bcrypt"])
@@ -22,15 +22,33 @@ class UserDomain:
     def __init__(self) -> None:
         self.repo = UserRepository()
 
-    async def register_user(self, data: RegisterDTO):
+    async def register_user(self, data: RegisterDTO, admin=None):
         errors = self.validate_registration(data)
 
         if errors is not None:
             raise HTTPException(400, errors)
-        hash_password = bcrypt.hash(data.password1)
-        register_data = {"email": data.email, "hash_password": hash_password}
+
+        register_data = {
+            "email": data.email,
+            "first_name": data.first_name,
+            "last_name": data.last_name,
+            "role": RoleEnum.client.name if not admin else RoleEnum.admin.name,
+            "city": data.city,
+            "hash_password": bcrypt.hash(data.password1),
+        }
+
         user_id = await self.repo.create_user(register_data)
         return {"user_id": str(user_id)}
+
+    async def fetch_profile(self, user_id: str):
+        result = self.repo.get_user_by_id(ObjectId(user_id))
+
+        return {"profile": result}
+
+    async def user_list(self):
+        result = await self.repo.get_users()
+
+        return {"users": result}
 
     @classmethod
     def validate_registration(cls, data: dict) -> dict | None:
@@ -55,7 +73,9 @@ class AuthService:
         verify = bcrypt.verify(data.password, current_user["hash_password"])
         if not verify:
             return {"error": "username or password is wrong"}
-        token = self.__generate_token(current_user["_id"], current_user["email"])
+        token = self.__generate_token(
+            current_user["_id"], current_user["email"], current_user["role"]
+        )
         return token
 
     @classmethod
@@ -68,9 +88,9 @@ class AuthService:
         return data
 
     @classmethod
-    def __generate_token(cls, user_id: ObjectId, email: str) -> dict:
+    def __generate_token(cls, user_id: ObjectId, email: str, role: str) -> dict:
         exp = datetime.now() + timedelta(hours=1)
-        payload = {"user_id": str(user_id), "email": email, "exp": exp}
+        payload = {"user_id": str(user_id), "email": email, "role": role, "exp": exp}
         token = jwt.encode(payload, config.SECRET_KEY, algorithm="HS256")
         return {"access_token": token, "token_type": "bearer"}
 
