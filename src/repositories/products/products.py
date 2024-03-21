@@ -1,4 +1,6 @@
 from bson import ObjectId
+from fastapi import HTTPException
+from pymongo.errors import DuplicateKeyError
 
 from core.config import RedisTools, categories, products
 
@@ -17,13 +19,18 @@ class ProductRepository:
             cats.append({"id": str(el["_id"]), "title": el["title"]})
 
         data["category_ids"] = cats
+        try:
+            return await products.insert_one(data)
+        except DuplicateKeyError:
+            raise HTTPException(400, {"error": "product with this slug already exists"})
 
-        return await products.insert_one(data)
-
-    async def product_list(self, filtering_data):
-
-        return await products.find(filtering_data, {"_id": 0, "comments": 0}).to_list(
-            None
+    async def product_list(self, filtering_data: dict, available: bool = True):
+        if available:
+            filtering_data.update({"stock": {"$gt": 0}})
+        return (
+            await products.find(filtering_data, {"_id": 0, "comments": 0})
+            .sort({"created_at": 1})
+            .to_list(None)
         )
 
     async def product_by_ids(self, ids: int | list):

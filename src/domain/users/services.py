@@ -35,6 +35,7 @@ class UserDomain:
             "last_name": data.last_name,
             "role": RoleEnum.client.name if not admin else RoleEnum.admin.name,
             "city": data.city,
+            "created_at": datetime.now(),
             "hash_password": bcrypt.hash(data.password1),
         }
 

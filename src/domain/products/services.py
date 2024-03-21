@@ -2,7 +2,6 @@ import logging
 from dataclasses import asdict
 from datetime import datetime
 
-from dotenv import load_dotenv
 from slugify import slugify
 
 from core.liqpay import LiqPayTools
@@ -17,9 +16,15 @@ class ProductDomain:
         self.repo = ProductRepository()
 
     async def add_product(self, data: ProductDTO):
-
         data_to_save = asdict(data)
-        data_to_save["slug"] = slugify(data_to_save.get("title"))
+        data_to_save.update(
+            {
+                "slug": slugify(data_to_save.get("title")),
+                "created_at": datetime.now(),
+                "available": True,
+            }
+        )
+
         new_object = await self.repo.create_product(data_to_save)
 
         return {"id": str(new_object.inserted_id)}

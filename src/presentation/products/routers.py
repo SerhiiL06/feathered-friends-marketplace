@@ -1,9 +1,10 @@
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Body, Depends, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 
 from src.domain.products.bookmarks import BookmarkDomain
 from src.domain.products.services import CartDomain, ProductDomain
+from src.domain.users.services import current_user
 
 from .dto import ProductDTO
 
@@ -29,8 +30,11 @@ async def product_list(
 
 @product_router.post("/products", tags=["products"])
 async def create_product(
-    service: Annotated[ProductDomain, Depends()], data: ProductDTO
+    user: current_user, service: Annotated[ProductDomain, Depends()], data: ProductDTO
 ):
+
+    if user.get("role") != "admin":
+        return {"error": "permission danied"}
     return await service.add_product(data)
 
 

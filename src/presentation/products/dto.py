@@ -23,8 +23,12 @@ class ReadCommentDTO:
 class ProductDTO:
     title: str
     description: str
+    brand: str
+    country: str
     price: PriceDTO
     category_titles: list[str]
+
+    stock: int
     tags: list[str]
 
 
