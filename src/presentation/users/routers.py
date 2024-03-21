@@ -1,11 +1,12 @@
-from typing import Annotated
+from dataclasses import asdict
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 
 from src.domain.users.services import AuthService, UserDomain, current_user
 
-from .dto import RegisterDTO
+from .dto import ChangePasswordDTO, RegisterDTO, RoleEnum, UpdateUserDTO
 
 users_router = APIRouter(prefix="/users", tags=["auth"])
 
@@ -28,8 +29,37 @@ async def get_profile(user: current_user, service: Annotated[UserDomain, Depends
     return await service.fetch_profile(user.get("user_id"))
 
 
+@users_router.patch("/profile")
+async def update_profile_info(
+    user: current_user, data: UpdateUserDTO, service: Annotated[UserDomain, Depends()]
+):
+    return await service.update_profile(user.get("email"), asdict(data))
+
+
+@users_router.patch("/profile/set-password")
+async def set_password(
+    user: current_user,
+    data: ChangePasswordDTO,
+    service: Annotated[UserDomain, Depends()],
+):
+    return await service.set_password(user.get("email"), asdict(data))
+
+
 @users_router.get("/admin/user-list")
 async def get_users(user: current_user, service: Annotated[UserDomain, Depends()]):
     if user.get("role") != "admin":
         raise HTTPException(403, "you dont have permission")
     return await service.user_list()
+
+
+@users_router.post("/admin/privilege-user")
+async def get_users(
+    service: Annotated[UserDomain, Depends()],
+    user: current_user,
+    email: str = Body(),
+    remove: bool = Body(None),
+    role: Literal[RoleEnum.admin, RoleEnum.manager] = Body(None),
+):
+    if user.get("role") != RoleEnum.admin.value:
+        raise HTTPException(403, "you dont have permission")
+    return await service.change_user_privilege(email, role, remove)

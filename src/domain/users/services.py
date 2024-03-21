@@ -8,6 +8,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 
 from core import config
+from core.config import redis_client
 from src.presentation.users.dto import RegisterDTO, RoleEnum
 from src.repositories.users.repository import UserRepository
 
@@ -41,14 +42,85 @@ class UserDomain:
         return {"user_id": str(user_id)}
 
     async def fetch_profile(self, user_id: str):
-        result = self.repo.get_user_by_id(ObjectId(user_id))
+        result = await self.repo.get_user_by_id(ObjectId(user_id))
 
         return {"profile": result}
+
+    async def update_profile(self, email: str, data: dict, password=None):
+        data_to_update = {}
+        data_to_update["$set"] = self.clear_none_value(data)
+
+        if not data_to_update:
+            return {"error": "data is empty"}
+
+        if data_to_update.get("address"):
+            data_to_update.update(
+                {"$addToSet": {"address": data_to_update.pop("address")}}
+            )
+
+        updated_profile = await self.repo.update_user(email, data_to_update, password)
+        return {"update": updated_profile}
+
+    async def set_password(self, email, data: dict):
+        check_spam = self.throlling_password_changes(email)
+        if check_spam:
+            return {"error": f"u can try againg after {check_spam} seconds"}
+
+        compare_result = await self.compare_password(email, data.get("old_password"))
+
+        if compare_result is False:
+            redis_client.incrby(f"spam_contlor:{email}", 1)
+            redis_client.expire(f"spam_contlor:{email}", 360)
+
+            if int(redis_client.get(f"spam_contlor:{email}")) > 3:
+                redis_client.set(f"block:{email}", 1, 60)
+            return {"error": "password was wrong"}
+
+        if data.get("password1") != data.get("password2"):
+            return {"error": "password was wrong"}
+
+        to_update = {"hash_password": bcrypt.hash(data.get("password1"))}
+        await self.update_profile(email, to_update, password=True)
+        return {"ok": "update"}
 
     async def user_list(self):
         result = await self.repo.get_users()
 
         return {"users": result}
+
+    async def change_user_privilege(
+        self, email: str, role: RoleEnum | None, remove: bool = None
+    ):
+        if role is None and remove is None:
+            raise HTTPException(
+                400, {"error": "function without parameters is not work"}
+            )
+
+        update_user = await self.repo.update_user_privilege(email, role.name, remove)
+        return {"update": update_user}
+
+    @staticmethod
+    def clear_none_value(data: dict) -> dict:
+        clear = {}
+
+        for k, v in data.items():
+            if v is not None:
+                clear.update({k: v})
+        return clear
+
+    async def compare_password(self, email, old_pw):
+        user = await self.repo.get_user_password(email)
+
+        result = bcrypt.verify(old_pw, user["hash_password"])
+        return result
+
+    @classmethod
+    def throlling_password_changes(cls, email) -> bool:
+        block_key = f"block:{email}"
+        if redis_client.get(block_key):
+            return redis_client.ttl(block_key)
+
+        return False
 
     @classmethod
     def validate_registration(cls, data: dict) -> dict | None:
