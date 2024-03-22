@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 
 from src.domain.products.bookmarks import BookmarkDomain
-from src.domain.products.services import CartDomain, ProductDomain
+from src.domain.products.services import CartDomain, CommentDTO, ProductDomain
 from src.domain.users.services import current_user
 
 from .dto import ProductDTO
@@ -44,8 +44,8 @@ async def product_detail(service: Annotated[ProductDomain, Depends()], slug: str
 
 
 @product_router.patch("/products/{slug}", tags=["products"])
-async def product_detail(slug: str):
-    pass
+async def product_detail(service: Annotated[ProductDomain, Depends()], slug: str):
+    return await service.retrieve_product(slug)
 
 
 @product_router.delete("/products/{slug}", tags=["products"])
@@ -55,9 +55,12 @@ async def delete_product(service: Annotated[ProductDomain, Depends()], slug: str
 
 @product_router.post("/products/{slug}/comment", tags=["comments"])
 async def comment_product(
-    service: Annotated[ProductDomain, Depends()], slug: str, data: str = Body()
+    user: current_user,
+    service: Annotated[ProductDomain, Depends()],
+    slug: str,
+    data: CommentDTO,
 ):
-    return await service.comment(slug, data)
+    return await service.comment(slug, user.get("user_id"), data)
 
 
 @product_router.post("/products/{slug}/add-to-bookmark", tags=["bookmarks"])

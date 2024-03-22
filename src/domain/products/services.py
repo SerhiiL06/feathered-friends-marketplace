@@ -5,8 +5,7 @@ from datetime import datetime
 from slugify import slugify
 
 from core.liqpay import LiqPayTools
-from src.presentation.products.dto import (CommentDTO, DetailProductDTO,
-                                           ProductDTO)
+from src.presentation.products.dto import CommentDTO, DetailProductDTO, ProductDTO
 from src.repositories.cart.repository import CartRepository, OrderRepository
 from src.repositories.products.products import ProductRepository
 
@@ -35,22 +34,11 @@ class ProductDomain:
         if current is None:
             return {"code": 404, "message": "product not found"}
 
-        result = DetailProductDTO(
-            current["title"],
-            current["description"],
-            current["slug"],
-            current["price"],
-            current["category_ids"],
-            current["tags"],
-            comments=current["comments"] if current.get("comments") else [],
-        )
-        return {"detail": result}
+        return {"detail": current}
 
-    async def comment(self, slug: str, comment: CommentDTO):
-        comment = {"text": comment, "date": datetime.now()}
+    async def comment(self, slug: str, user_id: str, comment: CommentDTO):
+        comment = {**asdict(comment), "user": user_id, "created_at": datetime.now()}
         result = await self.repo.add_comment(slug, comment)
-
-        result.pop("_id")
         return {"update": result}
 
     async def delete_product(self, slug):

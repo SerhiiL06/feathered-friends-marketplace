@@ -11,6 +11,8 @@ class PriceDTO:
 @dataclass
 class CommentDTO:
     title: str
+    text: str
+    score: int
 
 
 @dataclass
