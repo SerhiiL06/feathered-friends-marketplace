@@ -1,6 +1,6 @@
 from bson import ObjectId
 
-from core.config import RedisTools, orderds
+from core.config import orderds
 from src.repositories.products.products import ProductRepository
 
 

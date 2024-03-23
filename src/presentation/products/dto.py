@@ -35,6 +35,18 @@ class ProductDTO:
 
 
 @dataclass
+class ProductDTO:
+    title: str = None
+    description: str = None
+    brand: str = None
+    country: str = None
+    price: PriceDTO = None
+    category_titles: list[str] | str = None
+    stock: int = None
+    tags: list[str] | str = None
+
+
+@dataclass
 class DetailProductDTO:
     title: str
     description: str
@@ -49,8 +61,3 @@ class DetailProductDTO:
 class FullProductDTO(PriceDTO):
     comments: list[ReadCommentDTO]
     votes: int
-
-
-# @dataclass
-# class CreateOrderDTO:
-#     item_list

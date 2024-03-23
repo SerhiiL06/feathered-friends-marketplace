@@ -1,6 +1,7 @@
+from dataclasses import asdict
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, Request
 
 from src.domain.products.bookmarks import BookmarkDomain
 from src.domain.products.services import CartDomain, CommentDTO, ProductDomain
@@ -44,8 +45,15 @@ async def product_detail(service: Annotated[ProductDomain, Depends()], slug: str
 
 
 @product_router.patch("/products/{slug}", tags=["products"])
-async def product_detail(service: Annotated[ProductDomain, Depends()], slug: str):
-    return await service.retrieve_product(slug)
+async def update_product(
+    user: current_user,
+    service: Annotated[ProductDomain, Depends()],
+    data: ProductDTO,
+    slug: str,
+):
+    if user.get("role") != "admin":
+        return {"error": "permission danied"}
+    return await service.update_product(slug, asdict(data))
 
 
 @product_router.delete("/products/{slug}", tags=["products"])

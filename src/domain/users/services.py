@@ -9,6 +9,7 @@ from passlib.context import CryptContext
 
 from core import config
 from core.config import redis_client
+from src.domain.tools.common import clear_none
 from src.presentation.users.dto import RegisterDTO, RoleEnum
 from src.repositories.users.repository import UserRepository
 
@@ -49,9 +50,9 @@ class UserDomain:
 
     async def update_profile(self, email: str, data: dict, password=None):
         data_to_update = {}
-        data_to_update["$set"] = self.clear_none_value(data)
+        data_to_update["$set"] = clear_none(data)
 
-        if not data_to_update:
+        if not data_to_update["$set"] is None:
             return {"error": "data is empty"}
 
         if data_to_update.get("address"):
@@ -99,15 +100,6 @@ class UserDomain:
 
         update_user = await self.repo.update_user_privilege(email, role.name, remove)
         return {"update": update_user}
-
-    @staticmethod
-    def clear_none_value(data: dict) -> dict:
-        clear = {}
-
-        for k, v in data.items():
-            if v is not None:
-                clear.update({k: v})
-        return clear
 
     async def compare_password(self, email, old_pw):
         user = await self.repo.get_user_password(email)

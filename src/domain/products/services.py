@@ -5,7 +5,8 @@ from datetime import datetime
 from slugify import slugify
 
 from core.liqpay import LiqPayTools
-from src.presentation.products.dto import CommentDTO, DetailProductDTO, ProductDTO
+from src.domain.tools.common import clear_none
+from src.presentation.products.dto import CommentDTO, ProductDTO
 from src.repositories.cart.repository import CartRepository, OrderRepository
 from src.repositories.products.products import ProductRepository
 
@@ -40,6 +41,32 @@ class ProductDomain:
         comment = {**asdict(comment), "user": user_id, "created_at": datetime.now()}
         result = await self.repo.add_comment(slug, comment)
         return {"update": result}
+
+    async def update_product(self, slug: str, data: dict) -> dict:
+        product_data = clear_none(data)
+
+        if product_data is None:
+            return {"error": "data is empty"}
+
+        tags = product_data.pop("tags", None)
+        category_titles = product_data.pop("category_titles", None)
+
+        to_update = {"$addToSet": {}, "$set": product_data}
+
+        if tags:
+            to_update["$addToSet"].update(
+                {"tags": tags} if isinstance(tags, str) else {"tags": {"$each": tags}}
+            )
+
+        if category_titles:
+            to_update["$addToSet"].update(
+                {"category_titles": category_titles}
+                if isinstance(category_titles, str)
+                else {"category_titles": {"$each": category_titles}}
+            )
+
+        document = await self.repo.update_product(slug, to_update)
+        return document
 
     async def delete_product(self, slug):
         result = await self.repo.delete_product(slug)
