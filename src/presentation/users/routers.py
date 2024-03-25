@@ -4,6 +4,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 
+from src.domain.products.services import ProductDomain
 from src.domain.users.services import AuthService, UserDomain, current_user
 
 from .dto import ChangePasswordDTO, RegisterDTO, RoleEnum, UpdateUserDTO
@@ -27,6 +28,13 @@ async def login(
 @users_router.get("/profile")
 async def get_profile(user: current_user, service: Annotated[UserDomain, Depends()]):
     return await service.fetch_profile(user.get("user_id"))
+
+
+@users_router.get("/profile/comments")
+async def fetch_user_comments(
+    user: current_user, service: Annotated[ProductDomain, Depends()]
+):
+    return await service.get_comments(user.get("user_id"))
 
 
 @users_router.patch("/profile")

@@ -11,9 +11,27 @@ from src.repositories.cart.repository import CartRepository, OrderRepository
 from src.repositories.products.products import ProductRepository
 
 
-class ProductDomain:
+class CommentsDomain:
     def __init__(self) -> None:
         self.repo = ProductRepository()
+
+    async def comment_product(self, slug: str, user_id: str, comment: CommentDTO):
+        comment = {
+            **asdict(comment),
+            "product": slug,
+            "user_id": user_id,
+            "created_at": datetime.now(),
+        }
+        result = await self.repo.create_comment(comment)
+        return {"update": result}
+
+    async def get_comments(self, user_id):
+        user_comments = await self.repo.get_user_comments(user_id)
+
+        return {"user_comment": user_comments}
+
+
+class ProductDomain(CommentsDomain):
 
     async def add_product(self, data: ProductDTO):
         data_to_save = asdict(data)
@@ -36,12 +54,11 @@ class ProductDomain:
         if current is None:
             return {"code": 404, "message": "product not found"}
 
+        rating = self.repo.get_avg_rating(current)
+        comment_list = await self.repo.get_comment_by_post(slug)
+        current["avg_rating"] = float(rating) if rating else 0
+        current["comments"] = comment_list
         return {"detail": current}
-
-    async def comment(self, slug: str, user_id: str, comment: CommentDTO):
-        comment = {**asdict(comment), "user": user_id, "created_at": datetime.now()}
-        result = await self.repo.add_comment(slug, comment)
-        return {"update": result}
 
     async def update_product(self, slug: str, data: dict) -> dict:
         product_data = clear_none(data)
@@ -95,7 +112,7 @@ class CartDomain:
     def __init__(self) -> None:
         self.repo = CartRepository()
 
-    async def add_to_cart(self, session_key: str, slug: str, qty: int):
+    async def add_to_cart(self, session_key: str, slug: str, qty: int) -> dict:
         try:
             await self.repo.add_to_cart(session_key, slug, qty)
             return {"ok": "add success"}
@@ -160,13 +177,13 @@ class CartDomain:
 class OrderDomain(LiqPayTools):
 
     def __init__(self) -> None:
-        self.cart = CartDomain()
-        self.products = ProductDomain()
         self.repo = OrderRepository()
         super().__init__()
 
-    async def complete_order(self, session_key, order_data: dict):
-        cart_data = await self.cart.get_cart(session_key)
+    async def complete_order(
+        self, session_key, order_data: dict, cart: CartDomain = CartDomain()
+    ):
+        cart_data = await cart.get_cart(session_key)
 
         # перевіряємо чи в корзині є товари
         if cart_data is None:
@@ -196,7 +213,7 @@ class OrderDomain(LiqPayTools):
         order["total_price"] = cart_data[-1].get("summary")
 
         # очищаємо корзину після створення екземпляру замовлення
-        await self.cart.delete_cart(session_key)
+        await cart.delete_cart(session_key)
 
         # зберігаємо замовлення
         await self.repo.create_order(order)
@@ -204,9 +221,9 @@ class OrderDomain(LiqPayTools):
         return link_to_pay
 
     def verify_payment(self, order_id):
-        r = self.check_pay_status(order_id)
+        status = self.check_pay_status(order_id)
 
-        return r
+        return status
 
     async def fetch_orders(self):
         list_of_orders = await self.repo.retrieve_all_orders()

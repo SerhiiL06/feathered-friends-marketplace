@@ -2,9 +2,9 @@ from bson import ObjectId
 from fastapi import HTTPException
 from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError
-from redis import Redis
 
-from core.config import RedisTools, categories, products
+
+from core.config import RedisTools, categories, comments, products
 
 
 class ProductRepository:
@@ -51,17 +51,20 @@ class ProductRepository:
     async def delete_product(self, slug: str):
         return await products.delete_one({"slug": slug})
 
-    async def add_comment(self, slug, comment: dict):
+    # comment methods
+    async def create_comment(self, comment: dict):
         try:
-            update_product = await products.find_one_and_update(
-                {"slug": slug},
-                {"$push": {"comments": comment}},
-                return_document=True,
-                projection={"_id": 0, "comments": 1},
-            )
-            return update_product
+            new = await comments.insert_one(comment)
+            return {"comment": str(new.inserted_id)}
+
         except:
             return {"error": "something went wrong"}
+
+    async def get_user_comments(self, user_id):
+        try:
+            return await comments.find({"user_id": user_id}, {"_id": 0}).to_list(None)
+        except:
+            return "error"
 
     # searching methods
     async def product_by_ids(self, ids: int | list):
@@ -85,27 +88,28 @@ class ProductRepository:
             except:
                 raise HTTPException(500, "something went wrong")
 
-        try:
-            detail_product = await products.find_one(
-                {"slug": slug}, {"_id": 0, "stock": 0, "available": 0, "created_at": 0}
-            )
-            rating = self.__get_avg_rating(detail_product, self.redis)
+        detail_product = await products.find_one(
+            {"slug": slug}, {"_id": 0, "stock": 0, "available": 0, "created_at": 0}
+        )
 
-            detail_product["avg_rating"] = float(rating) if rating else 0
-
-            return detail_product
-        except Exception as e:
-            raise HTTPException(500, f"{e}")
+        return detail_product
+        # except Exception as e:
+        #     raise HTTPException(500, f"{e.with_traceback()}")
 
     async def category_by_title(self, title: list[str]) -> ObjectId | None:
         return await categories.find({"title": {"$in": title}}).to_list(None)
 
-    @classmethod
-    def __get_avg_rating(cls, product: dict, db: Redis) -> float | None:
-        rating_key = f"rating:{product['slug']}"
-        if db.get(rating_key) is None:
+    async def get_comment_by_post(self, slug):
+        list_of_comment = await comments.find({"product": slug}, {"_id": 0}).to_list(
+            None
+        )
+        return list_of_comment
 
-            if len(product["comments"]) == 0:
+    def get_avg_rating(self, product: dict) -> float | None:
+        rating_key = f"rating:{product['slug']}"
+        if self.redis.get(rating_key) is None:
+
+            if product.get("comments") is None:
                 return None
 
             summary_score = 0
@@ -115,7 +119,7 @@ class ProductRepository:
 
             avg_rating = round(summary_score / len(product["comments"]), 2)
 
-            db.set(rating_key, avg_rating, 86400)
+            self.redis.set(rating_key, avg_rating, 86400)
             return avg_rating
 
-        return db.get(f"rating:{product['slug']}")
+        return self.redis.get(f"rating:{product['slug']}")

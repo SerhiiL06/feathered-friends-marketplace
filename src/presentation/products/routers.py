@@ -63,13 +63,13 @@ async def delete_product(service: Annotated[ProductDomain, Depends()], slug: str
 
 
 @product_router.post("/products/{slug}/comment", tags=["comments"])
-async def comment_product(
+async def add_comment_to_product(
     user: current_user,
     service: Annotated[ProductDomain, Depends()],
     slug: str,
     data: CommentDTO,
 ):
-    return await service.comment(slug, user.get("user_id"), data)
+    return await service.comment_product(slug, user.get("user_id"), data)
 
 
 @product_router.post("/products/{slug}/add-to-bookmark", tags=["bookmarks"])

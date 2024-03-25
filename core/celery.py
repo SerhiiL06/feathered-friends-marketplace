@@ -1,14 +1,13 @@
 from celery import Celery
 from celery.beat import crontab
 
+from . import celeryconfig
+
 app = Celery(
-    "market",
-    broker="redis://localhost:6379/0",
-    backend="redis://localhost:6379/0",
-    include=["src.domain.products.tasks"],
+    "market", broker="redis://localhost:6379/0", backend="redis://localhost:6379/0"
 )
 
-app.conf.update({"timezone": "Europe/Kyiv"})
+app.config_from_object(celeryconfig)
 
 
 app.conf.beat_schedule = {
