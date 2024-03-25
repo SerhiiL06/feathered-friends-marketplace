@@ -17,6 +17,7 @@ class ProductDomain:
 
     async def add_product(self, data: ProductDTO):
         data_to_save = asdict(data)
+        data_to_save["tags"].append("new")
         data_to_save.update(
             {
                 "slug": slugify(data_to_save.get("title")),
@@ -27,7 +28,7 @@ class ProductDomain:
 
         new_object = await self.repo.create_product(data_to_save)
 
-        return {"id": str(new_object.inserted_id)}
+        return {"product": str(new_object.inserted_id)}
 
     async def retrieve_product(self, slug):
         current = await self.repo.product_by_slug(slug)
@@ -54,15 +55,11 @@ class ProductDomain:
         to_update = {"$addToSet": {}, "$set": product_data}
 
         if tags:
-            to_update["$addToSet"].update(
-                {"tags": tags} if isinstance(tags, str) else {"tags": {"$each": tags}}
-            )
+            to_update["$addToSet"].update({"tags": {"$each": tags}})
 
         if category_titles:
             to_update["$addToSet"].update(
-                {"category_titles": category_titles}
-                if isinstance(category_titles, str)
-                else {"category_titles": {"$each": category_titles}}
+                {"category_titles": {"$each": category_titles}}
             )
 
         document = await self.repo.update_product(slug, to_update)

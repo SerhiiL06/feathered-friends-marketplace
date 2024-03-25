@@ -26,6 +26,7 @@ async def product_list(
         "price_gt": price_gt,
         "price_lt": price_lt,
     }
+
     return await service.all_products(filtering_data)
 
 

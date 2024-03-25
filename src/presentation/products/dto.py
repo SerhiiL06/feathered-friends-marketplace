@@ -41,9 +41,9 @@ class ProductDTO:
     brand: str = None
     country: str = None
     price: PriceDTO = None
-    category_titles: list[str] | str = None
+    category_titles: list[str] = None
     stock: int = None
-    tags: list[str] | str = None
+    tags: list[str] = None
 
 
 @dataclass
