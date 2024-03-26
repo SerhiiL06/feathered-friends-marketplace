@@ -1,4 +1,4 @@
-import logging
+from fastapi import Response, HTTPException
 from dataclasses import asdict
 from datetime import datetime
 
@@ -7,8 +7,7 @@ from slugify import slugify
 
 from src.domain.tools.common import clear_none, convert_obj_ids
 from src.presentation.products.dto import CommentDTO, ProductDTO
-from src.repositories.products.repository import (CommentRepository,
-                                                  ProductRepository)
+from src.repositories.products.repository import CommentRepository, ProductRepository
 
 
 class CommentsDomain:
@@ -61,8 +60,7 @@ class ProductDomain(CommentsDomain):
         current = await self.repo.product_by_slug(slug)
 
         if current is None:
-            return {"code": 404, "message": "product not found"}
-
+            raise HTTPException(404, {"message": "product dont found"})
         comment_list = await self.repo.get_comment_by_post(slug)
         current["comments"] = comment_list
         return {"detail": current}

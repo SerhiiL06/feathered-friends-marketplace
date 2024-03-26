@@ -62,9 +62,11 @@ class SearchProduct:
             {"slug": slug}, {"_id": 0, "stock": 0, "available": 0, "created_at": 0}
         )
 
-        detail_product["rating"] = self.__get_avg_rating(detail_product, self.redis)
-
-        return detail_product
+        try:
+            detail_product["rating"] = self.__get_avg_rating(detail_product, self.redis)
+            return detail_product
+        except TypeError:
+            return None
 
     async def category_by_title(self, title: list[str]) -> ObjectId | None:
         return await categories.find({"title": {"$in": title}}).to_list(None)
