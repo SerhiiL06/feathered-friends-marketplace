@@ -1,4 +1,4 @@
-from src.repositories.products.redistools import RedisRepository
+from src.repositories.tools.redistools import RedisRepository
 
 
 class BookmarkDomain:

@@ -1,10 +1,8 @@
-from redis import Redis
-
 from core.config import RedisTools
-from src.repositories.products.products import ProductRepository
+from src.repositories.products.repository import ProductRepository
 
 
-class RedisRepository(RedisTools):
+class RedisRepository:
     def __init__(self) -> None:
         self.__redis = RedisTools().connect_redis
         self.repo = ProductRepository()

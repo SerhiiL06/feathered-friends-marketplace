@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
 
-from src.domain.products.services import OrderDomain
+from src.domain.orders.services import OrderDomain
 
 from .dto import CreateOrderDto
 

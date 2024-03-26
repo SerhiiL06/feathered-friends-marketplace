@@ -1,7 +1,4 @@
-from bson import ObjectId
-
-from core.config import orderds
-from src.repositories.products.products import ProductRepository
+from src.repositories.products.repository import ProductRepository
 
 
 class CartRepository(ProductRepository):
@@ -21,7 +18,7 @@ class CartRepository(ProductRepository):
         self.redis.delete(key_to_delete)
         return {"message": "cart was clear"}
 
-    async def user_cart(self, session_key: str):
+    async def retrieve_cart(self, session_key: str):
         key = f"cart:{session_key}"
         cart_items = self.redis.zrange(key, 0, -1, withscores=True)
 
@@ -35,20 +32,4 @@ class CartRepository(ProductRepository):
         if not products:
             return None
 
-        result = {"products": products, "product_dict": product_dict}
-
-        return result
-
-
-class OrderRepository(CartRepository):
-    async def create_order(self, data: dict) -> str:
-
-        result = await orderds.insert_one(data)
-
-        return result
-
-    async def retrieve_all_orders(self):
-        return await orderds.find({}).sort({"created_date": -1}).to_list(None)
-
-    async def retrieve_order(self, order_id: str) -> dict:
-        return await orderds.find_one({"_id": ObjectId(order_id)})
+        return {"products": products, "cart_data": product_dict}

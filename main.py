@@ -2,7 +2,7 @@ import uuid
 
 from fastapi import FastAPI, Request
 
-from core.config import redis_client
+from src.presentation.cart.routers import cart_router
 from src.presentation.orders.routers import order_router
 from src.presentation.products.routers import product_router
 from src.presentation.users.routers import users_router
@@ -21,3 +21,4 @@ async def check_session(request: Request, next_call):
 app.include_router(users_router)
 app.include_router(product_router)
 app.include_router(order_router)
+app.include_router(cart_router)

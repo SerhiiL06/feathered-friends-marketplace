@@ -3,8 +3,9 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Body, Depends, Request
 
+from src.domain.cart.services import CartDomain
 from src.domain.products.bookmarks import BookmarkDomain
-from src.domain.products.services import CartDomain, CommentDTO, ProductDomain
+from src.domain.products.services import CommentDTO, ProductDomain
 from src.domain.users.services import current_user
 
 from .dto import ProductDTO
@@ -13,7 +14,7 @@ product_router = APIRouter()
 
 
 @product_router.get("/products", tags=["products"])
-async def product_list(
+async def fetch_product_list(
     service: Annotated[ProductDomain, Depends()],
     tag: str = None,
     category: Literal["for dogs", "for cats", "for fish"] = None,
@@ -27,7 +28,7 @@ async def product_list(
         "price_lt": price_lt,
     }
 
-    return await service.all_products(filtering_data)
+    return await service.get_products(filtering_data)
 
 
 @product_router.post("/products", tags=["products"])
@@ -69,7 +70,27 @@ async def add_comment_to_product(
     slug: str,
     data: CommentDTO,
 ):
-    return await service.comment_product(slug, user.get("user_id"), data)
+    return await service.add_comment(slug, user.get("user_id"), data)
+
+
+@product_router.get("/admin/comments", tags=["comments"])
+async def fetch_unmoder_comments(
+    user: current_user, service: Annotated[ProductDomain, Depends()]
+):
+
+    return await service.get_unmoder_comments()
+
+
+@product_router.patch("/admin/comments/{comment_id}/", tags=["comments"])
+async def patch_comment(
+    user: current_user,
+    comment_id: str,
+    service: Annotated[ProductDomain, Depends()],
+    result: str = Body(regex="approve|rejex"),
+):
+    if user.get("role") != "admin":
+        return {"error": "permission danied"}
+    return await service.moderate_comment(comment_id, result)
 
 
 @product_router.post("/products/{slug}/add-to-bookmark", tags=["bookmarks"])
@@ -94,20 +115,3 @@ async def add_product_to_cart(
     qty: int = Body(),
 ):
     return await service.add_to_cart(request.cookies.get("session_key"), slug, qty)
-
-
-@product_router.get("/cart", tags=["cart"])
-async def cart_view(request: Request, service: Annotated[CartDomain, Depends()]):
-    return await service.get_cart(request.cookies.get("session_key"))
-
-
-@product_router.post("/cart", tags=["cart"])
-async def clear_cart(request: Request, service: Annotated[CartDomain, Depends()]):
-    return service.delete_cart(request.cookies.get("session_key"))
-
-
-@product_router.post("/cart/{product_slug}", tags=["cart"])
-async def clear_specific(
-    request: Request, product_slug: str, service: Annotated[CartDomain, Depends()]
-):
-    return await service.delete_cart(request.cookies.get("session_key"), product_slug)

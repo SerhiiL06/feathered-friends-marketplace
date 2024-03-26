@@ -19,10 +19,11 @@ users = db["users"]
 
 
 class RedisTools:
+    __REDIS = Redis()
 
     @property
     def connect_redis(self):
-        return Redis()
+        return self.__REDIS
 
 
 PUBLIC_KEY = os.getenv("PUBLIC_KEY")

@@ -2,33 +2,42 @@ import logging
 from dataclasses import asdict
 from datetime import datetime
 
+from bson import ObjectId
 from slugify import slugify
 
-from core.liqpay import LiqPayTools
-from src.domain.tools.common import clear_none
+from src.domain.tools.common import clear_none, convert_obj_ids
 from src.presentation.products.dto import CommentDTO, ProductDTO
-from src.repositories.cart.repository import CartRepository, OrderRepository
-from src.repositories.products.products import ProductRepository
+from src.repositories.products.repository import (CommentRepository,
+                                                  ProductRepository)
 
 
 class CommentsDomain:
     def __init__(self) -> None:
         self.repo = ProductRepository()
+        self.comment = CommentRepository()
 
-    async def comment_product(self, slug: str, user_id: str, comment: CommentDTO):
+    async def add_comment(self, slug: str, user_id: str, comment: CommentDTO):
         comment = {
             **asdict(comment),
             "product": slug,
             "user_id": user_id,
+            "moderate": 0,
             "created_at": datetime.now(),
         }
-        result = await self.repo.create_comment(comment)
-        return {"update": result}
+        result = await self.comment.create_comment(comment)
+        return {"comment": result}
 
     async def get_comments(self, user_id):
-        user_comments = await self.repo.get_user_comments(user_id)
+        user_comments = await self.comment.get_user_comments(user_id)
 
         return {"user_comment": user_comments}
+
+    async def get_unmoder_comments(self):
+        unmoder_list = await self.comment.select_unmoder_comments()
+        return convert_obj_ids(unmoder_list)
+
+    async def moderate_comment(self, comment_id: str, result: str):
+        return await self.comment.update_comment(ObjectId(comment_id), result)
 
 
 class ProductDomain(CommentsDomain):
@@ -54,9 +63,7 @@ class ProductDomain(CommentsDomain):
         if current is None:
             return {"code": 404, "message": "product not found"}
 
-        rating = self.repo.get_avg_rating(current)
         comment_list = await self.repo.get_comment_by_post(slug)
-        current["avg_rating"] = float(rating) if rating else 0
         current["comments"] = comment_list
         return {"detail": current}
 
@@ -90,7 +97,7 @@ class ProductDomain(CommentsDomain):
 
         return {"delete": result.deleted_count}
 
-    async def all_products(self, filtering_data: dict):
+    async def get_products(self, filtering_data: dict):
 
         f = {}
         if filtering_data.get("tag"):
@@ -105,139 +112,4 @@ class ProductDomain(CommentsDomain):
         if filtering_data.get("price_gt"):
             f.update({"price.retail": {"$gt": filtering_data.get("price_gt")}})
 
-        return await self.repo.product_list(f)
-
-
-class CartDomain:
-    def __init__(self) -> None:
-        self.repo = CartRepository()
-
-    async def add_to_cart(self, session_key: str, slug: str, qty: int) -> dict:
-        try:
-            await self.repo.add_to_cart(session_key, slug, qty)
-            return {"ok": "add success"}
-        except:
-
-            return {"error": "something went wrong"}
-
-    async def delete_cart(self, session_key: str, specific: str = None):
-        result = await self.repo.clear_cart(session_key, specific)
-        return result
-
-    async def get_cart(self, session_key: str) -> list:
-        format_data = await self.repo.user_cart(session_key)
-
-        if format_data is None:
-            return format_data
-
-        products, product_dict = format_data.get("products"), format_data.get(
-            "product_dict"
-        )
-
-        cart_data = self.generate_cart_data(products, product_dict)
-
-        return cart_data
-
-    @staticmethod
-    def generate_cart_data(product_list: list, product_dict: dict) -> list:
-        cart_data = []
-        summary_price = 0
-
-        for product in product_list:
-            qty = product_dict.get(str(product["_id"]))["qty"]
-
-            # ціна за одиницю будується в залежності від кількості замовлений одиниць
-            current_price = (
-                product["price"]["retail"]
-                if qty < 10
-                else product["price"]["wholesale"]
-            )
-
-            # вирахування ціни за певний товар
-            total_price = qty * current_price
-
-            # додавання інформації з приводу доданого продукту до корзини
-            dict_data = {
-                "title": product["title"],
-                "slug": product["slug"],
-                "price": current_price,
-                "qty": qty,
-                "total": total_price,
-            }
-            cart_data.append(dict_data)
-
-            summary_price += total_price
-
-        # додавання до результуючого списку корзини ціни за всі товари
-        cart_data.append({"summary": summary_price})
-
-        return cart_data
-
-
-class OrderDomain(LiqPayTools):
-
-    def __init__(self) -> None:
-        self.repo = OrderRepository()
-        super().__init__()
-
-    async def complete_order(
-        self, session_key, order_data: dict, cart: CartDomain = CartDomain()
-    ):
-        cart_data = await cart.get_cart(session_key)
-
-        # перевіряємо чи в корзині є товари
-        if cart_data is None:
-            return cart_data
-
-        # створюємо екземпляр замовлення
-        order = {}
-        order["items_line"] = cart_data[:-1]
-        order["status"] = "no pay"
-        order["created_date"] = datetime.now()
-
-        order.update(
-            {
-                "recipient_data": {
-                    "user": {
-                        "first_name": order_data.get("first_name"),
-                        "last_name": order_data.get("last_name"),
-                    },
-                    "address": {
-                        "city": order_data.get("city"),
-                        "zip_code": order_data.get("zip_code"),
-                    },
-                }
-            }
-        )
-
-        order["total_price"] = cart_data[-1].get("summary")
-
-        # очищаємо корзину після створення екземпляру замовлення
-        await cart.delete_cart(session_key)
-
-        # зберігаємо замовлення
-        await self.repo.create_order(order)
-        link_to_pay = self.generate_pay_link(order)
-        return link_to_pay
-
-    def verify_payment(self, order_id):
-        status = self.check_pay_status(order_id)
-
-        return status
-
-    async def fetch_orders(self):
-        list_of_orders = await self.repo.retrieve_all_orders()
-
-        # Отримати рядкове представлення ObjectId для кожного документа
-        list_of_orders_with_string_ids = [
-            {**order, "_id": str(order["_id"])} for order in list_of_orders
-        ]
-
-        return list_of_orders_with_string_ids
-
-    async def fetch_one_order(self, order_id):
-        order = await self.repo.retrieve_order(order_id)
-
-        order["_id"] = str(order.pop("_id"))
-
-        return order
+        return await self.repo.select_product_list(f)
