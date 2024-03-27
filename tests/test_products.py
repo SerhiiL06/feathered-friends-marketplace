@@ -1,10 +1,7 @@
-from fastapi.testclient import TestClient
 import slugify
-from main import app
 from pytest import fixture
 from core.config import products
-
-client = TestClient(app)
+from httpx import AsyncClient
 
 
 @fixture(scope="session")
@@ -26,17 +23,17 @@ def create_product():
     products.insert_many([product1, product2])
 
 
-# @fixture(scope="session", autouse=True)
-# def delete_products():
-#     products.delete_many({"title": {"$in": ["тестовий товар", "тестовий товар2"]}})
+async def test_product_list(aclient: AsyncClient):
+    response = await aclient.get("/products")
+    assert response.status_code == 200
+    assert len(response.json()) > 0
 
 
-# def test_product_list():
-#     response = client.get("/products")
-#     assert response.status_code == 200
-#     assert len(response.json()) == 6
+async def test_product_retrieve(aclient: AsyncClient):
+    wrong_response = await aclient.get("/products/testovii-tovar")
+    correct_response = await aclient.get("/products/test-dlia-seleri5")
+    assert wrong_response.status_code == 404
+    assert wrong_response.json() == {"detail": {"message": "product dont found"}}
 
-
-def test_product_retrieve():
-    response = client.get("/products/testovii-tovar")
-    assert response.status_code == 404
+    assert correct_response.status_code == 200
+    assert bool(correct_response.json()["detail"]["comments"]) == False
