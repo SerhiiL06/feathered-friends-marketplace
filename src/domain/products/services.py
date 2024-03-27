@@ -2,13 +2,12 @@ from dataclasses import asdict
 from datetime import datetime
 
 from bson import ObjectId
-from fastapi import HTTPException, Response
+from fastapi import HTTPException
 from slugify import slugify
 
 from src.domain.tools.common import clear_none, convert_obj_ids
 from src.presentation.products.dto import CommentDTO, ProductDTO
-from src.repositories.products.repository import (CommentRepository,
-                                                  ProductRepository)
+from src.repositories.products.repository import CommentRepository, ProductRepository
 
 
 class CommentsDomain:
@@ -98,6 +97,13 @@ class ProductDomain(CommentsDomain):
 
     async def get_products(self, filtering_data: dict):
 
+        f = self.generate_filtering_data(filtering_data)
+
+        return await self.repo.select_product_list(f)
+
+    @classmethod
+    def generate_filtering_data(cls, filtering_data: dict) -> dict:
+
         f = {}
         if filtering_data.get("tag"):
             f.update({"tags": filtering_data.get("tag")})
@@ -111,4 +117,9 @@ class ProductDomain(CommentsDomain):
         if filtering_data.get("price_gt"):
             f.update({"price.retail": {"$gt": filtering_data.get("price_gt")}})
 
-        return await self.repo.select_product_list(f)
+        if filtering_data.get("title"):
+            f.update(
+                {"title": {"$regex": filtering_data.get("title"), "$options": "i"}}
+            )
+
+        return f

@@ -1,4 +1,7 @@
 .venv
+.pytest_cache
+.coverage
+htmlcov
 Pipfile
 Pipfile.lock
 __pycache__/

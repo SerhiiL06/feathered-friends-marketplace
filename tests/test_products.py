@@ -15,6 +15,10 @@ async def test_product_list(aclient: AsyncClient):
 
     assert "cats" in response_with_params.json()[0]["tags"]
 
+    response_with_search = await aclient.get("/products", params={"title": "корм"})
+    assert response_with_search.status_code == 200
+    assert len(response_with_search.json()) == 1
+
 
 @pytest.mark.asyncio(scope="session")
 async def test_product_retrieve(aclient: AsyncClient):

@@ -16,12 +16,14 @@ product_router = APIRouter()
 @product_router.get("/products", tags=["products"])
 async def fetch_product_list(
     service: Annotated[ProductDomain, Depends()],
+    title: str = None,
     tag: str = None,
     category: Literal["for dogs", "for cats", "for fish"] = None,
     price_gt: int = None,
     price_lt: int = None,
 ):
     filtering_data = {
+        "title": title,
         "tag": tag,
         "category": category,
         "price_gt": price_gt,
