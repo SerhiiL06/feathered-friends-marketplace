@@ -1,7 +1,7 @@
 from dataclasses import asdict
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
 
 from src.domain.products.services import ProductDomain
@@ -20,13 +20,17 @@ async def register(service: Annotated[UserDomain, Depends()], data: RegisterDTO)
 @users_router.post("/login")
 async def login(
     service: Annotated[AuthService, Depends()],
+    request: Request,
     data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ):
+
     return await service.get_token(data)
 
 
 @users_router.get("/profile")
-async def get_profile(user: current_user, service: Annotated[UserDomain, Depends()]):
+async def get_profile(
+    user: current_user, request: Request, service: Annotated[UserDomain, Depends()]
+):
     return await service.fetch_profile(user.get("user_id"))
 
 

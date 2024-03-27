@@ -86,7 +86,7 @@ async def patch_comment(
     user: current_user,
     comment_id: str,
     service: Annotated[ProductDomain, Depends()],
-    result: str = Body(regex="approve|rejex"),
+    result: str = Body(pattern="approve|rejex"),
 ):
     if user.get("role") != "admin":
         return {"error": "permission danied"}

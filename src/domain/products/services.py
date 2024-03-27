@@ -1,13 +1,14 @@
-from fastapi import Response, HTTPException
 from dataclasses import asdict
 from datetime import datetime
 
 from bson import ObjectId
+from fastapi import HTTPException, Response
 from slugify import slugify
 
 from src.domain.tools.common import clear_none, convert_obj_ids
 from src.presentation.products.dto import CommentDTO, ProductDTO
-from src.repositories.products.repository import CommentRepository, ProductRepository
+from src.repositories.products.repository import (CommentRepository,
+                                                  ProductRepository)
 
 
 class CommentsDomain:
@@ -67,7 +68,7 @@ class ProductDomain(CommentsDomain):
 
     async def update_product(self, slug: str, data: dict) -> dict:
         product_data = clear_none(data)
-
+        product_data["slug"] = slugify(product_data["title"])
         if product_data is None:
             return {"error": "data is empty"}
 

@@ -1,17 +1,25 @@
-import pytest
 import asyncio
-from httpx import AsyncClient
+
+import pytest
+from httpx import ASGITransport, AsyncClient
+
+from core.config import products, redis_client
 from main import app
 
 
-@pytest.fixture(scope="session")
-def event_loop(request):
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+@pytest.fixture(scope="session", autouse=True)
+async def clear_fake_data():
+    print("start")
+    yield
+    redis_client.delete("bookmark:fakecookie")
 
 
 @pytest.fixture(scope="session")
 async def aclient():
-    async with AsyncClient(app=app, base_url="http://test") as aclient:
+    async with ASGITransport(app=app) as tran:
+        aclient = AsyncClient(
+            transport=tran,
+            base_url="http://test",
+            cookies={"session_key": "fakecookie"},
+        )
         yield aclient
