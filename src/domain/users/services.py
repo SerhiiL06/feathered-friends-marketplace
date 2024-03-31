@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Annotated
-
+from dataclasses import asdict
 import jwt
 from bson import ObjectId
 from fastapi import Depends, HTTPException, status
@@ -25,20 +25,18 @@ class UserDomain:
         self.repo = UserRepository()
 
     async def register_user(self, data: RegisterDTO, admin=None):
-        errors = self.validate_registration(data)
 
-        if errors is not None:
-            raise HTTPException(400, errors)
+        self.__check_passwords(data)
 
-        register_data = {
-            "email": data.email,
-            "first_name": data.first_name,
-            "last_name": data.last_name,
-            "role": RoleEnum.client.name if not admin else RoleEnum.admin.name,
-            "city": data.city,
-            "created_at": datetime.now(),
-            "hash_password": bcrypt.hash(data.password1),
-        }
+        register_data = asdict(data)
+        register_data.pop("password2")
+        register_data.update(
+            {
+                "hash_password": bcrypt.hash(register_data.pop("password1")),
+                "role": RoleEnum.client.name if not admin else RoleEnum.admin.name,
+                "created_at": datetime.now(),
+            }
+        )
 
         user_id = await self.repo.create_user(register_data)
         return {"user_id": str(user_id)}
@@ -71,15 +69,9 @@ class UserDomain:
         compare_result = await self.compare_password(email, data.get("old_password"))
 
         if compare_result is False:
-            redis_client.incrby(f"spam_contlor:{email}", 1)
-            redis_client.expire(f"spam_contlor:{email}", 360)
+            self.__update_spam_status(email)
 
-            if int(redis_client.get(f"spam_contlor:{email}")) > 3:
-                redis_client.set(f"block:{email}", 1, 60)
-            return {"error": "password was wrong"}
-
-        if data.get("password1") != data.get("password2"):
-            return {"error": "password was wrong"}
+        self.__check_passwords(data)
 
         to_update = {"hash_password": bcrypt.hash(data.get("password1"))}
         await self.update_profile(email, to_update, password=True)
@@ -108,6 +100,15 @@ class UserDomain:
         return result
 
     @classmethod
+    def __update_spam_status(cls, email: str):
+        redis_client.incrby(f"spam_contlor:{email}", 1)
+        redis_client.expire(f"spam_contlor:{email}", 360)
+
+        if int(redis_client.get(f"spam_contlor:{email}")) > 3:
+            redis_client.set(f"block:{email}", 1, 60)
+            raise HTTPException(400, {"error": "rate limit"})
+
+    @classmethod
     def throlling_password_changes(cls, email) -> bool:
         block_key = f"block:{email}"
         if redis_client.get(block_key):
@@ -116,15 +117,12 @@ class UserDomain:
         return False
 
     @classmethod
-    def validate_registration(cls, data: dict) -> dict | None:
-        error_pack = {}
-        if data.password1 != data.password2:
-            error_pack.update({"password": "password must be the same"})
+    def __check_passwords(cls, data: dict) -> dict | None:
 
-        if error_pack:
-            errors = {"code": status.HTTP_400_BAD_REQUEST, "messages": error_pack}
-            return errors
-        return None
+        if data.password1 != data.password2:
+            raise HTTPException(
+                400, {"error": "function without parameters is not work"}
+            )
 
 
 class AuthService:
